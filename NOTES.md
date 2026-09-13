@@ -1781,46 +1781,27 @@ declares logical properties: `padding` covers `padding-inline` covers
       noticing. An example object's keys are now checked against the interface
       its `typeName` names. Checked it bites.
 
-- [x] **`cva` was considered and declined, on dates and on evidence.**
+- [x] **`cva` was tried on three components and reverted.** Button, Badge and
+      Slider were converted, measured, and put back. The conversion added 15
+      lines rather than removing any; compound variants have one customer in
+      41 components (`iconOnlyActive ? ICON_ONLY[size] : SIZES[size]`), and
+      expressing it as a compound entry cost Button its documented behaviour
+      of dropping `fs-*` when the label goes. Badge showed the ceiling: tone
+      crossed with intent is 75 compound entries against a 40-string table.
+      `VariantProps` was declined separately, for widening every documented
+      prop with `| null`. Version facts, for whenever this comes back:
       `class-variance-authority` last shipped 0.7.1 in November 2024 and is
-      still 0.x; `tailwind-variants` is the maintained equivalent but is built
-      around tailwind-merge rather than `yummacss/merge`. The deciding fact was
-      local: a grep for conditions crossing two props across all 41 components
-      returns nothing, so the compound variants and typed defaults that `cva`
-      buys over a `Record<K, string>` lookup are unused here, and the cost is a
-      runtime dependency in every component someone installs. Reopen if
-      compound variants appear; a twenty-line local `variants()` helper gets
-      the ergonomics without the dependency.
+      still 0.x; `tailwind-variants` is maintained but built around
+      tailwind-merge rather than `yummacss/merge`. Reopen if compound variants
+      appear in numbers; a twenty-line local `variants()` helper gets the
+      ergonomics without a runtime dependency in every installed file.
 
-- [x] **cva trial on Button, Badge and Slider.** Three findings, one per
-      component. Button is the case for it: `iconOnly` crossed with `size` is
-      a compound variant, which a flat map cannot say, and it turned out the
-      old ternary had a quiet bug. `iconOnlyActive ? ICON_ONLY[size] :
-      SIZES[size]` swapped the *whole* size string for padding, so an
-      icon-only button silently lost its `fs-*`; all three sizes sat on the
-      inherited 13.33px. A compound variant only overrides the padding, so the
-      type scale survives. Measured across all 2,286 combinations: 573
-      identical, 849 the same classes in a different order, 864 different, and
-      every one of those 864 is an icon-only button gaining its font size. Box
-      geometry is unchanged at 10x10, 18x18 and 26x26 with padding 4, 8 and 12,
-      because the icons carry explicit sizes.
-- [x] **Badge is where cva stops helping.** Its colour is `tone` crossed with
-      `intent`, fifteen combinations over five slots, which as compound
-      variants is seventy-five entries saying what the `INTENTS` table says in
-      forty and reads by role. Only the standalone axes moved, and the table
-      stayed. A full sweep should expect the same split: flat axes convert,
-      dense products do not.
-- [x] **cva does not resolve conflicts; `merge` does, and within one argument
-      too.** That is what makes compound variants viable here: cva emits
-      `px-3 py-2 fs-md p-2` as one string and `merge` returns `fs-md p-2`.
-      Checked directly before writing any of it.
-- [x] **`merge-composition` went blind and had to be taught cva.** It resolved
-      `Record<K, string>` constants, and converting three components dropped it
-      under its own floor. It now reads a `cva(...)` initializer as the bag of
-      strings it is. The floor moved from a cartesian product to the count of
-      strings reached: cva hands `merge` one argument where five maps handed it
-      five, so the product collapses while the coverage does not. Converting
-      all 41 would need this test re-tuned again.
+- [x] **An icon-only button is off the type scale on purpose.** `ICON_ONLY`
+      swaps the whole size string rather than only its padding, so no `fs-*`
+      survives: a button with no text has no type scale to keep, and a size
+      there would resize a glyph passed as a character rather than an svg.
+      `tests/registry.test.ts` fails if an `fs-*` reappears in that table or
+      the swap turns into a padding-only override.
 
 - [ ] **The "does nothing" cluster is not schema drift.** Checked every prop in
       every meta against its component source: 4 hits, all spread-forwarded
